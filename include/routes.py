@@ -49,7 +49,6 @@ def create():
 @app.route('/todos', methods=['GET'])
 def get():
     user_id = request.headers.get('Userid')
-
     sorting = request.args.get('created_at')  # query param: asc or desc
     res = get_todos(user_id, sorting)
     return res

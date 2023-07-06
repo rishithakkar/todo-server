@@ -6,10 +6,11 @@
     {
         "title": "string",
         "description": "string",
-        "label": "string",
+        "categorie": "string",
         "created_at": "datetime",
         "created_by": ObjectId(user_id), # reference to user collection
-        "completed": "boolean"
+        "completed": "boolean",
+        "color": "string"
     }
 '''
 
@@ -21,18 +22,25 @@ from bson.objectid import ObjectId
 
 def create_todo(data, user_id):
     # insert todo in todo collection
-    db_con.todos.insert_one({
+    todo_id = db_con.todos.insert_one({
         "title": data["title"],
         "description": data["description"],
-        "label": data["label"],
+        "categorie": data["categorie"],
         "created_at": datetime.utcnow(),
         "created_by": ObjectId(user_id),
         "completed": False,
-    })
+        "color": data["color"],
+    }).inserted_id
+
+    todo = db_con.todos.find_one({"_id": ObjectId(todo_id)})
+    
+    todo["id"] = str(todo["_id"])
+    todo["created_by"] = str(todo["created_by"])
+    del todo["_id"]
 
     return make_response(
-        jsonify({"message": "Todo created!"}),
-        200,
+        jsonify({"message": "Todo created!", "todo": todo}),
+        201,
     )
 
 
@@ -59,12 +67,13 @@ def get_todos(user_id, sorting):
     todo_list = []
     for todo in todos:
         todo_list.append({
-            "id": str(todo["_id"]),
-            "title": todo["title"],
-            "description": todo["description"],
-            "label": todo["label"],
-            "created_at": todo["created_at"],
-            "completed": todo["completed"],
+            "id": str(todo["_id"]) if "_id" in todo else None,
+            "title": todo["title"] if "title" in todo else None,
+            "description": todo["description"] if "description" in todo else None,
+            "categorie": todo["categorie"] if "categorie" in todo else None,
+            "created_at": todo["created_at"] if "created_at" in todo else None,
+            "completed": todo["completed"] if "completed" in todo else False,
+            "color": todo["color"] if "color" in todo else "#000",
         })
 
     return make_response(
@@ -80,7 +89,7 @@ def update_todo(data, todo_id, user_id):
             jsonify({"message": "Invalid todo id!"}),
             400,
         )
-    
+
     # check if todo exists
     todo = db_con.todos.find_one(
         {"_id": ObjectId(todo_id), "created_by": ObjectId(user_id)})
@@ -89,7 +98,7 @@ def update_todo(data, todo_id, user_id):
             jsonify({"message": "Todo not found!"}),
             400,
         )
-    
+
     # create payload of data to be updated
     payload = {}
     for key in data:
@@ -102,8 +111,15 @@ def update_todo(data, todo_id, user_id):
         {"$set": payload}
     )
 
+    todo = db_con.todos.find_one(
+        {"_id": ObjectId(todo_id), "created_by": ObjectId(user_id)})
+
+    todo["id"] = str(todo["_id"])
+    todo["created_by"] = str(todo["created_by"])
+    del todo["_id"]
+    
     return make_response(
-        jsonify({"message": "Todo updated!"}),
+        jsonify({"message": "Todo updated!", "todo": todo}),
         200,
     )
 
@@ -115,7 +131,7 @@ def delete_todo(todo_id, user_id):
             jsonify({"message": "Invalid todo id!"}),
             400,
         )
-    
+
     # check if todo exists
     todo = db_con.todos.find_one(
         {"_id": ObjectId(todo_id), "created_by": ObjectId(user_id)})

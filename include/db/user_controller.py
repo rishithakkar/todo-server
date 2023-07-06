@@ -29,14 +29,14 @@ def create_user(data):
     hashed_password = bcrypt.generate_password_hash(data["password"])
 
     # insert user in user collection
-    db_con.users.insert_one({
+    user_id = db_con.users.insert_one({
         "username": data["username"],
         "password": hashed_password,
         "created_at": datetime.utcnow(),
-    })
+    }).inserted_id
 
     return make_response(
-        jsonify({"message": "User created!"}),
+        jsonify({"message": "User register successfully!", "user_id": str(user_id)}),
         201,
     )
 
@@ -58,12 +58,15 @@ def login_user(data):
         )
 
     return make_response(
-        jsonify({"message": "User logged in!"}),
+        jsonify({"message": "User logged in!", "user_id": str(user["_id"])}),
         200,
     )
 
 # check user is valid or not by user_id
 def check_user(user_id):
+    if not user_id:
+        return False
+    
     if ObjectId.is_valid(user_id):
         user = db_con.users.find_one({"_id": ObjectId(user_id)})
         if not user:
@@ -75,5 +78,5 @@ def check_user(user_id):
 def invalid_user_response():
     return make_response(
         jsonify({"message": "Invalid user!"}),
-        401,
+        200,    # TODO: 200 because we I got CORS error with 401 in frontend
     )
